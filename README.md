@@ -89,4 +89,4 @@ to a layer.
 - `Config.WithInterruptSignals(signals...)` — Customize shutdown signals.
 - `Config.WithFallibleBackgroundTasks(allowed)` — Allow background task
 errors without stopping the shutdown.
-- `Task.Task` - Configurable runner wrapper.
+- `task.Task` - Configurable runner wrapper.
