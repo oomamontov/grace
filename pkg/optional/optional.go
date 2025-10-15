@@ -55,6 +55,10 @@ func (v Value[T]) ShouldGet() T {
 	return v.value
 }
 
+func (v Value[T]) GetOrDefault() T {
+	return v.value
+}
+
 func (v Value[T]) IsSet() bool {
 	return v.isSet
 }

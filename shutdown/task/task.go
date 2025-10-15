@@ -3,7 +3,7 @@ package task
 import (
 	"context"
 	"fmt"
-	"github.com/oomamontov/grace/optional"
+	"github.com/oomamontov/grace/pkg/optional"
 )
 
 type Runner interface {
@@ -41,10 +41,18 @@ type Task struct {
 	runner Runner
 }
 
-func New(runner Runner) Task {
-	return Task{
-		runner: runner,
+func WithName(name string) func(*Task) {
+	return func(task *Task) {
+		task.name.Set(name)
 	}
+}
+
+func New(runner Runner, opts ...func(*Task)) Task {
+	res := Task{runner: runner}
+	for _, opt := range opts {
+		opt(&res)
+	}
+	return res
 }
 
 func (t Task) Init(ctx context.Context) error {

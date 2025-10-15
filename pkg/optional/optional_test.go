@@ -167,3 +167,34 @@ func TestValue_ShouldGet(t *testing.T) {
 		})
 	}
 }
+
+func TestValue_GetOrDefault(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name    string
+		prepare func() Value[int]
+		want    int
+	}{
+		{
+			name: "empty",
+			prepare: func() Value[int] {
+				return Empty[int]()
+			},
+		},
+		{
+			name: "non-empty",
+			prepare: func() Value[int] {
+				return New(1)
+			},
+			want: 1,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			val := tc.prepare()
+			res := val.GetOrDefault()
+			require.Equal(t, tc.want, res)
+		})
+	}
+}
