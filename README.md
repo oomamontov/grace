@@ -3,6 +3,13 @@
 A flexible and extensible Go library for organizing graceful
 shutdown and managing the lifecycle of services and background tasks.
 
+> [!WARNING]
+> This is a **work-in-progress** project!
+This library is not production-ready and is actively under development.
+**No backward compatibility** guarantees are provided — APIs, behavior, and even the project
+structure may change at any time without notice.
+Use at your own risk!
+
 ## Features
 
 - **Layered initialization and shutdown:**
