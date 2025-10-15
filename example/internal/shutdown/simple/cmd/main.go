@@ -23,6 +23,7 @@ func main() {
 	svc := service.New(cfg.Service, kvStorage, cache, log)
 	httpServer := http.New(cfg.Transport.HTTP, svc, log)
 	grpcServer := grpc.New(cfg.Transport.GRPC, svc, log)
+
 	builder := shutdown.New().WithDefaultValues().
 		Register(kvStorage, rStorage).
 		Register(cache). // cache is depending on rStorage, so rStorage should be initialized beforehand
