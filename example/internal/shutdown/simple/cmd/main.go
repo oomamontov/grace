@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"log/slog"
+
 	"github.com/oomamontov/grace/example/internal/shutdown/simple/config"
 	"github.com/oomamontov/grace/example/internal/shutdown/simple/service"
 	"github.com/oomamontov/grace/example/internal/shutdown/simple/storage/caching"
@@ -10,7 +12,6 @@ import (
 	"github.com/oomamontov/grace/example/internal/shutdown/simple/transport/grpc"
 	"github.com/oomamontov/grace/example/internal/shutdown/simple/transport/http"
 	"github.com/oomamontov/grace/shutdown"
-	"log/slog"
 )
 
 func main() {

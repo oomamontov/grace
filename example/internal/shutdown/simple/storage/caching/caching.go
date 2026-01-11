@@ -2,10 +2,11 @@ package caching
 
 import (
 	"context"
-	"github.com/oomamontov/grace/example/internal/shutdown/simple/storage/relational"
 	"log/slog"
 	"math/rand/v2"
 	"time"
+
+	"github.com/oomamontov/grace/example/internal/shutdown/simple/storage/relational"
 )
 
 type Storage struct {

@@ -2,8 +2,9 @@ package task
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type simpleRunner struct {

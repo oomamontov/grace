@@ -3,14 +3,17 @@ package shutdown
 import (
 	"context"
 	"fmt"
-	"github.com/oomamontov/grace/pkg/itertool"
-	"github.com/oomamontov/grace/pkg/optional"
-	"github.com/oomamontov/grace/shutdown/task"
-	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
 	"slices"
 	"syscall"
+	"time"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/oomamontov/grace/pkg/itertool"
+	"github.com/oomamontov/grace/pkg/optional"
+	"github.com/oomamontov/grace/shutdown/task"
 )
 
 type LayerError struct {
@@ -29,10 +32,30 @@ func (e LayerError) Unwrap() error {
 	return e.Inner
 }
 
+type PrematureExitError struct {
+	TaskName optional.Value[string]
+}
+
+func (e PrematureExitError) Error() string {
+	if name, ok := e.TaskName.Get(); ok {
+		return fmt.Sprintf("task %q exited prematurely", name)
+	}
+	return "task exited prematurely"
+}
+
+type ExitTimeoutError struct {
+	Timeout time.Duration
+}
+
+func (e ExitTimeoutError) Error() string {
+	return fmt.Sprintf("task did not exit after %s", e.Timeout.String())
+}
+
 type Layer struct {
 	name            optional.Value[string]
 	tasks           []task.Task
 	backgroundTasks []task.Task
+	exitTimeout     optional.Value[time.Duration]
 }
 
 func WithBackgroundTasks(rs ...task.Runner) func(*Layer) {
@@ -55,6 +78,12 @@ func WithLayerName(name string) func(*Layer) {
 	}
 }
 
+func WithExitTimeout(timeout time.Duration) func(*Layer) {
+	return func(layer *Layer) {
+		layer.exitTimeout.Set(timeout)
+	}
+}
+
 func NewLayer(rs []task.Runner, opts ...func(*Layer)) Layer {
 	tasks := make([]task.Task, 0, len(rs))
 	for _, r := range rs {
@@ -73,8 +102,9 @@ func NewLayer(rs []task.Runner, opts ...func(*Layer)) Layer {
 
 type Config struct {
 	layers                  []Layer
-	signals                 optional.Value[[]os.Signal] // default: os.Interrupt, syscall.SIGTERM
-	fallibleBackgroundTasks optional.Value[bool]        // default: false; if unset: false
+	signals                 optional.Value[[]os.Signal]   // default: os.Interrupt, syscall.SIGTERM
+	fallibleBackgroundTasks optional.Value[bool]          // default: false; if unset: false
+	defaultExitTimeout      optional.Value[time.Duration] // used if no layer timeout specified
 }
 
 // New returns empty shutdown config.
@@ -96,6 +126,11 @@ func (c Config) WithInterruptSignals(signals ...os.Signal) Config {
 
 func (c Config) WithFallibleBackgroundTasks(allowed bool) Config {
 	c.fallibleBackgroundTasks.Set(allowed)
+	return c
+}
+
+func (c Config) WithDefaultLayerExitTimeout(timeout time.Duration) Config {
+	c.defaultExitTimeout.Set(timeout)
 	return c
 }
 
@@ -143,6 +178,12 @@ func (e BackgroundTaskError) Unwrap() error {
 	return e.Inner
 }
 
+type cancellation struct {
+	f         func()
+	timeout   optional.Value[time.Duration]
+	layerName optional.Value[string]
+}
+
 // Run runs Init and then Run on registered runners.
 // Provided context might be used to stop initialization and return on Init stage, but not on Run stage.
 // If one runner returns error, all other runners are stopped forcefully.
@@ -178,24 +219,32 @@ func (c Config) Run(ctx context.Context) error {
 	// ctx cancellation does nothing from now on
 
 	layerStopped := make(chan struct{})
-	cancelFuncs := make([]context.CancelFunc, 0, len(c.layers))
+	cancellations := make([]cancellation, 0, len(c.layers))
 
 	for _, layer := range c.layers {
 		localCtx, cancel := context.WithCancel(runCtx)
 		defer cancel()
 		lg, layerCtx := errgroup.WithContext(localCtx)
 
-		cancelFuncs = append(cancelFuncs, cancel)
+		exiting := false
+		cancellations = append(cancellations,
+			cancellation{
+				f: func() {
+					exiting = true
+					cancel()
+				},
+				layerName: layer.name,
+				timeout:   layer.exitTimeout.OrOther(c.defaultExitTimeout),
+			})
 
 		g.Go(func() error {
-			if len(layer.tasks) == 0 {
+			defer func() {
 				// localCtx is not cancelled after successful wait
+				// should work even for empty or background tasks only layers
 				context.AfterFunc(localCtx, func() {
-					layerStopped <- struct{}{} // will be executed after shutdown command on layer cancel command
+					layerStopped <- struct{}{}
 				})
-			} else {
-				defer func() { layerStopped <- struct{}{} }() // will be executed after lg.Wait()
-			}
+			}()
 
 			for _, t := range layer.backgroundTasks {
 				lg.Go(func() error {
@@ -210,6 +259,9 @@ func (c Config) Run(ctx context.Context) error {
 				lg.Go(func() error {
 					if err := t.Run(layerCtx); err != nil {
 						return err
+					}
+					if !exiting {
+						return PrematureExitError{TaskName: t.Name}
 					}
 					return nil
 				})
@@ -228,11 +280,23 @@ func (c Config) Run(ctx context.Context) error {
 	g.Go(func() error {
 		select {
 		case <-stopCh:
-			for _, f := range slices.Backward(cancelFuncs) {
-				f()
+			for _, currentCancellation := range slices.Backward(cancellations) {
+				var tc <-chan time.Time
+				timeout, ok := currentCancellation.timeout.Get()
+				if ok {
+					tc = time.After(timeout)
+				}
+				currentCancellation.f()
 				select {
 				case <-layerStopped:
 					continue
+				case <-tc:
+					return RunError{
+						Inner: LayerError{
+							Name:  currentCancellation.layerName,
+							Inner: ExitTimeoutError{Timeout: timeout},
+						},
+					}
 				case <-runCtx.Done():
 					return nil
 				}

@@ -44,6 +44,17 @@ func (v Value[T]) Or(val T) T {
 	return val
 }
 
+func (v Value[T]) OrOther(others ...Value[T]) Value[T] {
+	res := v
+	for _, other := range others {
+		if res.isSet {
+			return res
+		}
+		res = other
+	}
+	return res
+}
+
 func (v Value[T]) Get() (T, bool) {
 	return v.value, v.isSet
 }

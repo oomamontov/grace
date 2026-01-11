@@ -2,9 +2,10 @@ package grpc
 
 import (
 	"context"
-	"github.com/oomamontov/grace/example/internal/shutdown/simple/service"
 	"log/slog"
 	"time"
+
+	"github.com/oomamontov/grace/example/internal/shutdown/simple/service"
 )
 
 type Server struct {
