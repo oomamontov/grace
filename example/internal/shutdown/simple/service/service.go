@@ -2,10 +2,11 @@ package service
 
 import (
 	"context"
-	"github.com/oomamontov/grace/example/internal/shutdown/simple/storage/caching"
-	"github.com/oomamontov/grace/example/internal/shutdown/simple/storage/kv"
 	"log/slog"
 	"time"
+
+	"github.com/oomamontov/grace/example/internal/shutdown/simple/storage/caching"
+	"github.com/oomamontov/grace/example/internal/shutdown/simple/storage/kv"
 )
 
 type Service struct {

@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"fmt"
+
 	"github.com/oomamontov/grace/pkg/optional"
 )
 
@@ -37,13 +38,13 @@ func (e RunError) Unwrap() error {
 }
 
 type Task struct {
-	name   optional.Value[string]
+	Name   optional.Value[string]
 	runner Runner
 }
 
 func WithName(name string) func(*Task) {
 	return func(task *Task) {
-		task.name.Set(name)
+		task.Name.Set(name)
 	}
 }
 
@@ -59,7 +60,7 @@ func (t Task) Init(ctx context.Context) error {
 	if i, ok := t.runner.(Initer); ok {
 		if err := i.Init(ctx); err != nil {
 			return RunError{
-				Name:   t.name,
+				Name:   t.Name,
 				Action: ActionInit,
 				Inner:  err,
 			}
@@ -71,7 +72,7 @@ func (t Task) Init(ctx context.Context) error {
 func (t Task) Run(ctx context.Context) error {
 	if err := t.runner.Run(ctx); err != nil {
 		return RunError{
-			Name:   t.name,
+			Name:   t.Name,
 			Action: ActionRun,
 			Inner:  err,
 		}
