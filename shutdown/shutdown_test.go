@@ -15,7 +15,7 @@ import (
 	"github.com/oomamontov/grace/shutdown/task"
 )
 
-// mockIniterRunner mocks service with initialization
+// mockIniterRunner mocks service with initialization.
 type mockIniterRunner struct {
 	onInit      func()
 	initialized bool
@@ -30,7 +30,9 @@ func (m *mockIniterRunner) Init(context.Context) error {
 	if m.onInit != nil {
 		m.onInit()
 	}
+
 	m.initialized = true
+
 	return m.initErr
 }
 
@@ -39,8 +41,11 @@ func (m *mockIniterRunner) Run(ctx context.Context) error {
 	if m.runEarlyErr != nil {
 		return m.runEarlyErr
 	}
+
 	<-ctx.Done()
+
 	m.stopped = true
+
 	return m.runErr
 }
 
@@ -60,6 +65,7 @@ func TestRun_SingleSuccess(t *testing.T) {
 			require.True(t, runner.started)
 			close(stopCh)
 		}()
+
 		require.NoError(t, cfg.Run(context.Background()))
 		require.True(t, runner.stopped)
 	})
@@ -86,6 +92,7 @@ func TestRun_MultiSuccess(t *testing.T) {
 			require.True(t, r3.started)
 			close(stopCh)
 		}()
+
 		require.NoError(t, cfg.Run(context.Background()))
 		require.True(t, r1.stopped)
 		require.True(t, r2.stopped)
@@ -95,6 +102,7 @@ func TestRun_MultiSuccess(t *testing.T) {
 
 func TestRun_EarlyCancel(t *testing.T) {
 	t.Parallel()
+
 	runner := &mockIniterRunner{}
 
 	cfg := New().
@@ -112,6 +120,7 @@ func TestRun_EarlyCancel(t *testing.T) {
 
 func TestRun_CancelWhileInit(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	runner := &mockIniterRunner{onInit: func() { cancel() }}
 
@@ -127,6 +136,7 @@ func TestRun_CancelWhileInit(t *testing.T) {
 
 func TestRun_InitFailure_PreventsNextLayers(t *testing.T) {
 	t.Parallel()
+
 	badInit := &mockIniterRunner{initErr: errors.New("init boom")}
 	good1, good2 := &mockIniterRunner{}, &mockIniterRunner{}
 
@@ -157,6 +167,7 @@ func (p *prematureRunner) Run(context.Context) error {
 
 func TestRun_PrematureExit(t *testing.T) {
 	t.Parallel()
+
 	premature := &prematureRunner{}
 	cfg := New().Register(premature)
 
@@ -173,6 +184,7 @@ type unresponsiveRunner struct {
 
 func (u *unresponsiveRunner) Run(context.Context) error {
 	<-u.unlocker
+
 	return nil
 }
 
@@ -183,8 +195,10 @@ func TestRun_ExitTimeoutExceeded(t *testing.T) {
 		unresponsive := &unresponsiveRunner{unlocker: unlock}
 		stopCh := make(chan struct{})
 
-		const timeout = time.Minute
-		const stopAfter = 10 * time.Minute
+		const (
+			timeout   = time.Minute
+			stopAfter = 10 * time.Minute
+		)
 
 		cfg := New().WithDefaultLayerExitTimeout(timeout).
 			Register(unresponsive)
