@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -18,9 +19,9 @@ import (
 // mockIniterRunner mocks service with initialization.
 type mockIniterRunner struct {
 	onInit      func()
-	initialized bool
-	started     bool
-	stopped     bool
+	initialized atomic.Bool
+	started     atomic.Bool
+	stopped     atomic.Bool
 	initErr     error
 	runEarlyErr error
 	runErr      error
@@ -31,20 +32,21 @@ func (m *mockIniterRunner) Init(context.Context) error {
 		m.onInit()
 	}
 
-	m.initialized = true
+	m.initialized.Store(true)
 
 	return m.initErr
 }
 
 func (m *mockIniterRunner) Run(ctx context.Context) error {
-	m.started = true
+	m.started.Store(true)
+
 	if m.runEarlyErr != nil {
 		return m.runEarlyErr
 	}
 
 	<-ctx.Done()
 
-	m.stopped = true
+	m.stopped.Store(true)
 
 	return m.runErr
 }
@@ -61,13 +63,13 @@ func TestRun_SingleSuccess(t *testing.T) {
 
 		go func() {
 			time.Sleep(100 * time.Millisecond)
-			require.True(t, runner.initialized)
-			require.True(t, runner.started)
+			require.True(t, runner.initialized.Load())
+			require.True(t, runner.started.Load())
 			close(stopCh)
 		}()
 
 		require.NoError(t, cfg.Run(context.Background()))
-		require.True(t, runner.stopped)
+		require.True(t, runner.stopped.Load())
 	})
 }
 
@@ -84,19 +86,19 @@ func TestRun_MultiSuccess(t *testing.T) {
 
 		go func() {
 			time.Sleep(100 * time.Millisecond)
-			require.True(t, r1.initialized)
-			require.True(t, r1.started)
-			require.True(t, r2.initialized)
-			require.True(t, r2.started)
-			require.True(t, r3.initialized)
-			require.True(t, r3.started)
+			require.True(t, r1.initialized.Load())
+			require.True(t, r1.started.Load())
+			require.True(t, r2.initialized.Load())
+			require.True(t, r2.started.Load())
+			require.True(t, r3.initialized.Load())
+			require.True(t, r3.started.Load())
 			close(stopCh)
 		}()
 
 		require.NoError(t, cfg.Run(context.Background()))
-		require.True(t, r1.stopped)
-		require.True(t, r2.stopped)
-		require.True(t, r3.stopped)
+		require.True(t, r1.stopped.Load())
+		require.True(t, r2.stopped.Load())
+		require.True(t, r3.stopped.Load())
 	})
 }
 
@@ -113,9 +115,9 @@ func TestRun_EarlyCancel(t *testing.T) {
 
 	require.ErrorIs(t, cfg.Run(ctx), context.Canceled)
 
-	require.False(t, runner.initialized)
-	require.False(t, runner.started)
-	require.False(t, runner.stopped)
+	require.False(t, runner.initialized.Load())
+	require.False(t, runner.started.Load())
+	require.False(t, runner.stopped.Load())
 }
 
 func TestRun_CancelWhileInit(t *testing.T) {
@@ -129,9 +131,9 @@ func TestRun_CancelWhileInit(t *testing.T) {
 
 	require.ErrorIs(t, cfg.Run(ctx), context.Canceled)
 
-	require.True(t, runner.initialized)
-	require.False(t, runner.started)
-	require.False(t, runner.stopped)
+	require.True(t, runner.initialized.Load())
+	require.False(t, runner.started.Load())
+	require.False(t, runner.stopped.Load())
 }
 
 func TestRun_InitFailure_PreventsNextLayers(t *testing.T) {
@@ -149,14 +151,14 @@ func TestRun_InitFailure_PreventsNextLayers(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "init boom")
 
-	require.True(t, good1.initialized)
-	require.False(t, good1.started)
+	require.True(t, good1.initialized.Load())
+	require.False(t, good1.started.Load())
 
-	require.True(t, badInit.initialized)
-	require.False(t, badInit.started)
+	require.True(t, badInit.initialized.Load())
+	require.False(t, badInit.started.Load())
 
-	require.False(t, good2.initialized)
-	require.False(t, good2.started)
+	require.False(t, good2.initialized.Load())
+	require.False(t, good2.started.Load())
 }
 
 type prematureRunner struct{}
@@ -275,14 +277,14 @@ func TestRun_Layer(t *testing.T) {
 
 		go func() {
 			time.Sleep(50 * time.Millisecond)
-			require.True(t, main.initialized)
-			require.True(t, bg.initialized)
+			require.True(t, main.initialized.Load())
+			require.True(t, bg.initialized.Load())
 			close(stopCh)
 		}()
 
 		require.NoError(t, cfg.Run(context.Background()))
-		require.True(t, main.stopped)
-		require.True(t, bg.stopped)
+		require.True(t, main.stopped.Load())
+		require.True(t, bg.stopped.Load())
 	})
 }
 
