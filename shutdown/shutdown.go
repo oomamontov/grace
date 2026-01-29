@@ -105,6 +105,7 @@ type Config struct {
 	signals                 optional.Value[[]os.Signal]   // default: os.Interrupt, syscall.SIGTERM
 	fallibleBackgroundTasks optional.Value[bool]          // default: false; if unset: false
 	defaultExitTimeout      optional.Value[time.Duration] // used if no layer timeout specified
+	stopChannel             chan struct{}                 // internal analogue of stop signal
 }
 
 // New returns empty shutdown config.
@@ -188,8 +189,18 @@ type cancellation struct {
 // Provided context might be used to stop initialization and return on Init stage, but not on Run stage.
 // If one runner returns error, all other runners are stopped forcefully.
 func (c Config) Run(ctx context.Context) error {
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, c.signals.GetOrDefault()...)
+	osSigCh := make(chan os.Signal, 1)
+	signal.Notify(osSigCh, c.signals.GetOrDefault()...)
+
+	stopCh := make(chan struct{})
+	go func() {
+		select {
+		case <-osSigCh:
+			close(stopCh)
+		case <-c.stopChannel:
+			close(stopCh)
+		}
+	}()
 
 	for _, layer := range c.layers {
 		if err := ctx.Err(); err != nil { // do not run Init if context is cancelled
