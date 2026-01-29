@@ -8,6 +8,7 @@ import (
 
 func TestValue(t *testing.T) {
 	t.Parallel()
+
 	testCases := []struct {
 		name    string
 		prepare func() Value[int]
@@ -39,9 +40,13 @@ func TestValue(t *testing.T) {
 		{
 			name: "once set default value",
 			prepare: func() Value[int] {
-				var res Value[int]
-				var val int
+				var (
+					res Value[int]
+					val int
+				)
+
 				res.Set(val)
+
 				return res
 			},
 			wantOk: true,
@@ -51,6 +56,7 @@ func TestValue(t *testing.T) {
 			prepare: func() Value[int] {
 				var res Value[int]
 				res.Set(1)
+
 				return res
 			},
 			wantVal: 1,
@@ -62,6 +68,7 @@ func TestValue(t *testing.T) {
 				var res Value[int]
 				res.Set(1)
 				res.Set(2)
+
 				return res
 			},
 			wantVal: 2,
@@ -72,6 +79,7 @@ func TestValue(t *testing.T) {
 			prepare: func() Value[int] {
 				var res Value[int]
 				res.Unset()
+
 				return res
 			},
 			wantOk: false,
@@ -81,6 +89,7 @@ func TestValue(t *testing.T) {
 			prepare: func() Value[int] {
 				res := New(1)
 				res.Unset()
+
 				return res
 			},
 			wantOk: false,
@@ -90,6 +99,7 @@ func TestValue(t *testing.T) {
 			prepare: func() Value[int] {
 				res := Empty[int]()
 				res.SetIfUnset(1)
+
 				return res
 			},
 			wantVal: 1,
@@ -100,6 +110,7 @@ func TestValue(t *testing.T) {
 			prepare: func() Value[int] {
 				res := New(1)
 				res.SetIfUnset(2)
+
 				return res
 			},
 			wantVal: 1,
@@ -111,6 +122,7 @@ func TestValue(t *testing.T) {
 				res := New(1)
 				res.Unset()
 				res.SetIfUnset(2)
+
 				return res
 			},
 			wantVal: 2,
@@ -120,6 +132,7 @@ func TestValue(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			val := tc.prepare()
 			gotVal, gotOk := val.Get()
 			require.Equal(t, tc.wantVal, gotVal, "unexpected value")
@@ -130,6 +143,7 @@ func TestValue(t *testing.T) {
 
 func TestValue_ShouldGet(t *testing.T) {
 	t.Parallel()
+
 	testCases := []struct {
 		name        string
 		prepare     func() Value[int]
@@ -154,7 +168,9 @@ func TestValue_ShouldGet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			val := tc.prepare()
+
 			defer func() {
 				r := recover()
 				if tc.shouldPanic {
@@ -163,6 +179,7 @@ func TestValue_ShouldGet(t *testing.T) {
 					require.Nil(t, r, "unexpected panic")
 				}
 			}()
+
 			res := val.ShouldGet()
 			require.Equal(t, tc.want, res)
 		})
@@ -171,6 +188,7 @@ func TestValue_ShouldGet(t *testing.T) {
 
 func TestValue_GetOrDefault(t *testing.T) {
 	t.Parallel()
+
 	testCases := []struct {
 		name    string
 		prepare func() Value[int]
@@ -193,6 +211,7 @@ func TestValue_GetOrDefault(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			val := tc.prepare()
 			res := val.GetOrDefault()
 			require.Equal(t, tc.want, res)

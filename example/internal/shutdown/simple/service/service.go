@@ -29,5 +29,6 @@ func (s *Service) Run(ctx context.Context) error {
 	s.log.Info("Got shutdown signal, stopping service workers...")
 	time.Sleep(2 * time.Second)
 	s.log.Info("Done")
+
 	return nil
 }

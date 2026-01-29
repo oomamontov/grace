@@ -1,0 +1,27 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: all
+  disable:
+    - wsl
+    - depguard
+    - err113
+    - exhaustruct
+    - gosec
+    - mnd
+    - revive
+    - funlen
+    - gochecknoglobals
+    - gocognit
+    - cyclop
+    - ireturn
+    - noinlineerr
+    - testifylint
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - perfsprint

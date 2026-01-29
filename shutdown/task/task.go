@@ -30,6 +30,7 @@ func (e RunError) Error() string {
 	if name, ok := e.Name.Get(); ok {
 		return fmt.Sprintf("%s task %q: %s", e.Action, name, e.Inner.Error())
 	}
+
 	return fmt.Sprintf("%s task: %s", e.Action, e.Inner.Error())
 }
 
@@ -53,6 +54,7 @@ func New(runner Runner, opts ...func(*Task)) Task {
 	for _, opt := range opts {
 		opt(&res)
 	}
+
 	return res
 }
 
@@ -66,6 +68,7 @@ func (t Task) Init(ctx context.Context) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -77,5 +80,6 @@ func (t Task) Run(ctx context.Context) error {
 			Inner:  err,
 		}
 	}
+
 	return nil
 }

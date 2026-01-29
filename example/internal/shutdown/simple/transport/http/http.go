@@ -23,6 +23,7 @@ func New(cfg Config, svc *service.Service, log *slog.Logger) *Server {
 func (s *Server) Init(ctx context.Context) error {
 	s.log.Info("Binding to address...")
 	s.log.Info("Ready to handle requests")
+
 	return nil
 }
 
@@ -33,6 +34,7 @@ func (s *Server) Run(ctx context.Context) error {
 			s.log.Info("Got shutdown signal, handling unfinished requests...")
 			time.Sleep(3 * time.Second)
 			s.log.Info("Done")
+
 			return nil
 		case <-time.After(3 * time.Second):
 			s.log.Info("Handling request")
