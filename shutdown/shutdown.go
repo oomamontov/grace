@@ -191,8 +191,13 @@ type cancellation struct {
 // Provided context might be used to stop initialization and return on Init stage, but not on Run stage.
 // If one runner returns error, all other runners are stopped forcefully.
 func (c Config) Run(ctx context.Context) error {
+	finished := make(chan struct{})
+	defer close(finished)
+
 	osSigCh := make(chan os.Signal, 1)
-	signal.Notify(osSigCh, c.signals.Or(defaultSignals)...)
+	if signals, ok := c.signals.Get(); ok {
+		signal.Notify(osSigCh, signals...)
+	}
 
 	stopCh := make(chan struct{})
 	go func() {
@@ -201,6 +206,7 @@ func (c Config) Run(ctx context.Context) error {
 			close(stopCh)
 		case <-c.stopChannel:
 			close(stopCh)
+		case <-finished: // no need for signals watching when Run already returned
 		}
 	}()
 
@@ -231,7 +237,7 @@ func (c Config) Run(ctx context.Context) error {
 
 	// ctx cancellation does nothing from now on
 
-	layerStopped := make(chan struct{})
+	layerStopped := make(chan struct{}, 1)
 	cancellations := make([]cancellation, 0, len(c.layers))
 
 	for _, layer := range c.layers {
@@ -255,7 +261,11 @@ func (c Config) Run(ctx context.Context) error {
 				// localCtx is not cancelled after successful wait
 				// should work even for empty or background tasks only layers
 				context.AfterFunc(localCtx, func() {
-					layerStopped <- struct{}{}
+					select {
+					case layerStopped <- struct{}{}:
+					// should never block and should not be called in parallel in normal circumstances
+					default:
+					}
 				})
 			}()
 
@@ -290,35 +300,32 @@ func (c Config) Run(ctx context.Context) error {
 		})
 	}
 
-	g.Go(func() error {
-		select {
-		case <-stopCh:
-			for _, currentCancellation := range slices.Backward(cancellations) {
-				var tc <-chan time.Time
-				timeout, ok := currentCancellation.timeout.Get()
-				if ok {
-					tc = time.After(timeout)
-				}
-				currentCancellation.f()
-				select {
-				case <-layerStopped:
-					continue
-				case <-tc:
-					return RunError{
-						Inner: LayerError{
-							Name:  currentCancellation.layerName,
-							Inner: ExitTimeoutError{Timeout: timeout},
-						},
-					}
-				case <-runCtx.Done():
-					return nil
-				}
+	select {
+	case <-stopCh:
+		for _, currentCancellation := range slices.Backward(cancellations) {
+			var tc <-chan time.Time
+			timeout, ok := currentCancellation.timeout.Get()
+			if ok {
+				tc = time.After(timeout)
 			}
-		case <-runCtx.Done():
-			return nil
+			currentCancellation.f()
+			select {
+			case <-layerStopped:
+				continue
+			case <-tc:
+				return RunError{
+					Inner: LayerError{
+						Name:  currentCancellation.layerName,
+						Inner: ExitTimeoutError{Timeout: timeout},
+					},
+				}
+			case <-runCtx.Done():
+				return RunError{Inner: context.Cause(runCtx)}
+			}
 		}
-		return nil
-	})
+	case <-runCtx.Done():
+		return RunError{Inner: context.Cause(runCtx)}
+	}
 
 	if err := g.Wait(); err != nil {
 		return RunError{Inner: err}
