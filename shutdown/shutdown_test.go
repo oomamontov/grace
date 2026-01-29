@@ -39,6 +39,7 @@ func (m *mockIniterRunner) Init(context.Context) error {
 
 func (m *mockIniterRunner) Run(ctx context.Context) error {
 	m.started.Store(true)
+
 	if m.runEarlyErr != nil {
 		return m.runEarlyErr
 	}
