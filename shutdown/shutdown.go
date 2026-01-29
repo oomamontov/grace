@@ -113,9 +113,11 @@ func New() Config {
 	return Config{}
 }
 
+var defaultSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
+
 // WithDefaultValues returns config with empty fields set to some reasonable defaults.
 func (c Config) WithDefaultValues() Config {
-	c.signals.SetIfUnset([]os.Signal{os.Interrupt, syscall.SIGTERM})
+	c.signals.SetIfUnset(defaultSignals)
 	c.fallibleBackgroundTasks.SetIfUnset(false)
 	return c
 }
@@ -190,7 +192,7 @@ type cancellation struct {
 // If one runner returns error, all other runners are stopped forcefully.
 func (c Config) Run(ctx context.Context) error {
 	osSigCh := make(chan os.Signal, 1)
-	signal.Notify(osSigCh, c.signals.GetOrDefault()...)
+	signal.Notify(osSigCh, c.signals.Or(defaultSignals)...)
 
 	stopCh := make(chan struct{})
 	go func() {
