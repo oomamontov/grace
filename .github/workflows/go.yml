@@ -27,7 +27,7 @@ jobs:
           cache-dependency-path: "**/go.sum"
 
       - name: Run tests
-        run: go test -v -race ./...
+        run: go test -v -race ./shutdown/...
 
       - name: Generate coverage
         run: go test -coverprofile=coverage.out -covermode=atomic ./...
@@ -35,7 +35,6 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.out
           flags: unittests
           name: grace
           fail_ci_if_error: true
