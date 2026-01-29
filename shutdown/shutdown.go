@@ -25,6 +25,7 @@ func (e LayerError) Error() string {
 	if name, ok := e.Name.Get(); ok {
 		return fmt.Sprintf("run layer %q: %s", name, e.Inner.Error())
 	}
+
 	return fmt.Sprintf("run layer: %s", e.Inner.Error())
 }
 
@@ -40,6 +41,7 @@ func (e PrematureExitError) Error() string {
 	if name, ok := e.TaskName.Get(); ok {
 		return fmt.Sprintf("task %q exited prematurely", name)
 	}
+
 	return "task exited prematurely"
 }
 
@@ -64,10 +66,13 @@ func WithBackgroundTasks(rs ...task.Runner) func(*Layer) {
 		for _, r := range rs {
 			if t, ok := r.(task.Task); ok {
 				tasks = append(tasks, t)
+
 				continue
 			}
+
 			tasks = append(tasks, task.New(r))
 		}
+
 		layer.backgroundTasks = tasks
 	}
 }
@@ -89,14 +94,18 @@ func NewLayer(rs []task.Runner, opts ...func(*Layer)) Layer {
 	for _, r := range rs {
 		if t, ok := r.(task.Task); ok {
 			tasks = append(tasks, t)
+
 			continue
 		}
+
 		tasks = append(tasks, task.New(r))
 	}
+
 	res := Layer{tasks: tasks}
 	for _, opt := range opts {
 		opt(&res)
 	}
+
 	return res
 }
 
@@ -119,21 +128,25 @@ var defaultSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 func (c Config) WithDefaultValues() Config {
 	c.signals.SetIfUnset(defaultSignals)
 	c.fallibleBackgroundTasks.SetIfUnset(false)
+
 	return c
 }
 
 func (c Config) WithInterruptSignals(signals ...os.Signal) Config {
 	c.signals.Set(signals)
+
 	return c
 }
 
 func (c Config) WithFallibleBackgroundTasks(allowed bool) Config {
 	c.fallibleBackgroundTasks.Set(allowed)
+
 	return c
 }
 
 func (c Config) WithDefaultLayerExitTimeout(timeout time.Duration) Config {
 	c.defaultExitTimeout.Set(timeout)
+
 	return c
 }
 
@@ -146,7 +159,9 @@ func (c Config) Register(runners ...task.Runner) Config {
 	if len(runners) == 0 {
 		return c
 	}
+
 	c.layers = append(c.layers, NewLayer(runners))
+
 	return c
 }
 
@@ -154,6 +169,7 @@ func (c Config) Register(runners ...task.Runner) Config {
 // The layer might be customized beforehand.
 func (c Config) RegisterLayer(layer Layer) Config {
 	c.layers = append(c.layers, layer)
+
 	return c
 }
 
@@ -200,6 +216,7 @@ func (c Config) Run(ctx context.Context) error {
 	}
 
 	stopCh := make(chan struct{})
+
 	go func() {
 		select {
 		case <-osSigCh:
@@ -214,12 +231,14 @@ func (c Config) Run(ctx context.Context) error {
 		if err := ctx.Err(); err != nil { // do not run Init if context is cancelled
 			return RunError{Inner: err}
 		}
+
 		initEg, initCtx := errgroup.WithContext(ctx)
 		for t := range itertool.Concat(slices.Values(layer.tasks), slices.Values(layer.backgroundTasks)) {
 			initEg.Go(func() error {
 				return t.Init(initCtx)
 			})
 		}
+
 		if err := initEg.Wait(); err != nil {
 			return RunError{
 				Inner: LayerError{
@@ -243,13 +262,16 @@ func (c Config) Run(ctx context.Context) error {
 	for _, layer := range c.layers {
 		localCtx, cancel := context.WithCancel(runCtx)
 		defer cancel()
+
 		lg, layerCtx := errgroup.WithContext(localCtx)
 
 		exiting := false
+
 		cancellations = append(cancellations,
 			cancellation{
 				f: func() {
 					exiting = true
+
 					cancel()
 				},
 				layerName: layer.name,
@@ -274,6 +296,7 @@ func (c Config) Run(ctx context.Context) error {
 					if err := t.Run(layerCtx); err != nil && !c.fallibleBackgroundTasks.GetOrDefault() {
 						return BackgroundTaskError{Inner: err}
 					}
+
 					return nil
 				})
 			}
@@ -283,9 +306,11 @@ func (c Config) Run(ctx context.Context) error {
 					if err := t.Run(layerCtx); err != nil {
 						return err
 					}
+
 					if !exiting {
 						return PrematureExitError{TaskName: t.Name}
 					}
+
 					return nil
 				})
 			}
@@ -296,6 +321,7 @@ func (c Config) Run(ctx context.Context) error {
 					Inner: err,
 				}
 			}
+
 			return nil
 		})
 	}
@@ -304,11 +330,14 @@ func (c Config) Run(ctx context.Context) error {
 	case <-stopCh:
 		for _, currentCancellation := range slices.Backward(cancellations) {
 			var tc <-chan time.Time
+
 			timeout, ok := currentCancellation.timeout.Get()
 			if ok {
 				tc = time.After(timeout)
 			}
+
 			currentCancellation.f()
+
 			select {
 			case <-layerStopped:
 				continue

@@ -17,6 +17,7 @@ import (
 func main() {
 	log := slog.Default()
 	cfg := config.Load()
+
 	log.Info("Config loaded")
 	kvStorage := kv.New(cfg.Storage.KV, log)
 	rStorage := relational.New(cfg.Storage.Relational, log)

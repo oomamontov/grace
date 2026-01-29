@@ -26,7 +26,9 @@ func (v *Value[T]) Set(val T) {
 
 func (v *Value[T]) Unset() {
 	v.isSet = false
+
 	var zero T
+
 	v.value = zero
 }
 
@@ -34,6 +36,7 @@ func (v *Value[T]) SetIfUnset(val T) {
 	if v.isSet {
 		return
 	}
+
 	v.Set(val)
 }
 
@@ -41,6 +44,7 @@ func (v Value[T]) Or(val T) T {
 	if v.isSet {
 		return v.value
 	}
+
 	return val
 }
 
@@ -50,8 +54,10 @@ func (v Value[T]) OrOther(others ...Value[T]) Value[T] {
 		if res.isSet {
 			return res
 		}
+
 		res = other
 	}
+
 	return res
 }
 
@@ -63,6 +69,7 @@ func (v Value[T]) ShouldGet() T {
 	if !v.isSet {
 		panic("value is not set")
 	}
+
 	return v.value
 }
 

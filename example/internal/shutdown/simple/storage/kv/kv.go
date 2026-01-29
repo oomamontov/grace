@@ -19,12 +19,14 @@ func New(cfg Config, log *slog.Logger) *Storage {
 
 func (s *Storage) Init(ctx context.Context) error {
 	s.log.Info("Connecting to db...")
+
 	select {
 	case <-time.After(time.Duration(1+rand.IntN(4)) * time.Second):
 		s.log.Info("Connected")
 	case <-ctx.Done():
 		s.log.Warn("Context cancelled, connection aborted")
 	}
+
 	return nil
 }
 
@@ -33,5 +35,6 @@ func (s *Storage) Run(ctx context.Context) error {
 	<-ctx.Done()
 	s.log.Info("Got shutdown signal, closing connection")
 	s.log.Info("Done")
+
 	return nil
 }
