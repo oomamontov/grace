@@ -2,9 +2,12 @@ package task
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oomamontov/grace/pkg/optional"
 )
 
 type simpleRunner struct {
@@ -49,4 +52,32 @@ func TestIniter(t *testing.T) {
 	require.NoError(t, rTask.Run(t.Context()))
 	require.True(t, r.initialized)
 	require.True(t, r.ran)
+}
+
+func TestErrors(t *testing.T) {
+	t.Parallel()
+
+	timeoutError := errors.New("timeout")
+
+	errWith := RunError{
+		Name:   optional.New("db-conn"),
+		Action: ActionInit,
+		Inner:  timeoutError,
+	}
+	require.Equal(t, `init task "db-conn": timeout`, errWith.Error())
+	require.ErrorIs(t, errWith, timeoutError)
+
+	errWithout := RunError{
+		Action: ActionRun,
+		Inner:  timeoutError,
+	}
+	require.Equal(t, `run task: timeout`, errWithout.Error())
+}
+
+func TestWithName(t *testing.T) {
+	t.Parallel()
+
+	r := &simpleRunner{}
+	task := New(r, WithName("http-server"))
+	require.Equal(t, "http-server", task.Name.ShouldGet())
 }
