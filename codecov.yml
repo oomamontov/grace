@@ -1,6 +1,5 @@
-component_management:
-  individual_components:
-    - component_id: shutdown
-      name: shutdown
-      paths:
-        - shutdown/
+ignore:
+  - "example/**/*"
+  - "pkg/**/*"
+  - "**/go.mod"
+  - "**/go.sum"
