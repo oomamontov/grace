@@ -1,0 +1,5 @@
+ignore:
+  - "example/**/*"
+  - "pkg/**/*"
+  - "**/go.mod"
+  - "**/go.sum"
