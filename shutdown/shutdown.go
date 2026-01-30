@@ -173,18 +173,6 @@ func (c Config) RegisterLayer(layer Layer) Config {
 	return c
 }
 
-type RunError struct {
-	Inner error
-}
-
-func (e RunError) Error() string {
-	return fmt.Sprintf("run layers: %s", e.Inner.Error())
-}
-
-func (e RunError) Unwrap() error {
-	return e.Inner
-}
-
 type BackgroundTaskError struct {
 	Inner error
 }
@@ -229,7 +217,7 @@ func (c Config) Run(ctx context.Context) error {
 
 	for _, layer := range c.layers {
 		if err := ctx.Err(); err != nil { // do not run Init if context is cancelled
-			return RunError{Inner: err}
+			return err
 		}
 
 		initEg, initCtx := errgroup.WithContext(ctx)
@@ -240,18 +228,16 @@ func (c Config) Run(ctx context.Context) error {
 		}
 
 		if err := initEg.Wait(); err != nil {
-			return RunError{
-				Inner: LayerError{
-					Name:  layer.name,
-					Inner: err,
-				},
+			return LayerError{
+				Name:  layer.name,
+				Inner: err,
 			}
 		}
 	}
 
 	g, runCtx := errgroup.WithContext(context.WithoutCancel(ctx))
 	if err := ctx.Err(); err != nil { // do not run if context is cancelled before goroutines start
-		return RunError{Inner: err}
+		return err
 	}
 
 	// ctx cancellation does nothing from now on
@@ -342,22 +328,20 @@ func (c Config) Run(ctx context.Context) error {
 			case <-layerStopped:
 				continue
 			case <-tc:
-				return RunError{
-					Inner: LayerError{
-						Name:  currentCancellation.layerName,
-						Inner: ExitTimeoutError{Timeout: timeout},
-					},
+				return LayerError{
+					Name:  currentCancellation.layerName,
+					Inner: ExitTimeoutError{Timeout: timeout},
 				}
 			case <-runCtx.Done():
-				return RunError{Inner: context.Cause(runCtx)}
+				return context.Cause(runCtx)
 			}
 		}
 	case <-runCtx.Done():
-		return RunError{Inner: context.Cause(runCtx)}
+		return context.Cause(runCtx)
 	}
 
 	if err := g.Wait(); err != nil {
-		return RunError{Inner: err}
+		return err
 	}
 
 	return nil

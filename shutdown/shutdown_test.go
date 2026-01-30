@@ -297,8 +297,7 @@ func TestError_WithNames(t *testing.T) {
 			Timeout: 5 * time.Second,
 		},
 	}
-	runErr := RunError{Inner: timeoutErr}
-	require.Equal(t, `run layers: run layer "db-layer": task did not exit after 5s`, runErr.Error())
+	require.Equal(t, `run layer "db-layer": task did not exit after 5s`, timeoutErr.Error())
 
 	premErr := PrematureExitError{
 		TaskName: optional.New("http-server"),
