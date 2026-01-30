@@ -1,5 +1,8 @@
 # grace
 
+[![codecov](https://codecov.io/github/oomamontov/grace/graph/badge.svg)](https://codecov.io/github/oomamontov/grace)
+[![GoDoc](https://godoc.org/github.com/oomamontov/grace?status.png)](https://godoc.org/github.com/oomamontov/grace)
+
 A flexible and extensible Go library for organizing graceful
 shutdown and managing the lifecycle of services and background tasks.
 
