@@ -55,10 +55,12 @@ jobs:
         with:
           persist-credentials: false
 
+      # golangci-lint fails to read export data of Go releases newer than its build,
+      # so lint with the minimal version from go.mod rather than the latest one
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: go.mod
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
