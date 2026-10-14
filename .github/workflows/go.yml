@@ -1,6 +1,3 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
 name: Go
 
 on:
@@ -9,51 +6,83 @@ on:
   pull_request:
     branches: [ "master" ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
-    name: Test
+    name: Test (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        go-version: [ "1.25" ]
+        # the minimal version supported by go.mod and the latest release
+        go-version: [ "1.25", "stable" ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
-          cache-dependency-path: "**/go.sum"
 
       - name: Run tests
-        run: go test -v -race ./shutdown/...
-
-      - name: Generate coverage
-        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -race -shuffle=on -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        if: matrix.go-version == 'stable'
+        uses: codecov/codecov-action@v7
         with:
+          files: coverage.out
+          disable_search: true
           flags: unittests
           name: grace
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # golangci-lint fails to read export data of Go releases newer than its build,
+      # so lint with the minimal version from go.mod rather than the latest one
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          # pinned: `default: all` enables new linters on every release
+          version: v2.13.1
+
+  modules:
+    name: Go modules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: "1.25"
-          cache-dependency-path: "**/go.sum"
+          go-version: stable
 
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.8.0
+      - name: Check go.mod and go.sum are tidy
+        run: go mod tidy -diff
 
-      - name: Run linter
-        run: golangci-lint run --timeout=5m
+      - name: Verify dependencies
+        run: go mod verify

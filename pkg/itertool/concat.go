@@ -1,7 +1,9 @@
+// Package itertool provides helpers for iterators.
 package itertool
 
 import "iter"
 
+// Concat returns an iterator over the values of all seqs, one sequence after another.
 func Concat[V any](seqs ...iter.Seq[V]) iter.Seq[V] {
 	return func(yield func(V) bool) {
 		for _, seq := range seqs {
@@ -14,6 +16,7 @@ func Concat[V any](seqs ...iter.Seq[V]) iter.Seq[V] {
 	}
 }
 
+// Concat2 returns an iterator over the pairs of all seqs, one sequence after another.
 func Concat2[K, V any](seqs ...iter.Seq2[K, V]) iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
 		for _, seq := range seqs {

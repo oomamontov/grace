@@ -218,3 +218,20 @@ func TestValue_GetOrDefault(t *testing.T) {
 		})
 	}
 }
+
+func TestValue_Fallbacks(t *testing.T) {
+	t.Parallel()
+
+	set, unset := New(1), Empty[int]()
+
+	require.True(t, set.IsSet())
+	require.False(t, unset.IsSet())
+
+	require.Equal(t, 1, set.Or(2))
+	require.Equal(t, 2, unset.Or(2))
+
+	require.Equal(t, set, set.OrOther(New(2)))
+	require.Equal(t, New(2), unset.OrOther(unset, New(2), New(3)))
+	require.Equal(t, unset, unset.OrOther(unset))
+	require.Equal(t, unset, unset.OrOther())
+}
