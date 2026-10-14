@@ -27,17 +27,34 @@ func (s *Server) Init(ctx context.Context) error {
 	return nil
 }
 
+// Run serves requests until the context is cancelled, like http.Server.ListenAndServe
+// that returns once http.Server.Shutdown is called.
 func (s *Server) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			s.log.Info("Got shutdown signal, handling unfinished requests...")
-			time.Sleep(3 * time.Second)
-			s.log.Info("Done")
+			s.log.Info("Stopped accepting new requests")
 
 			return nil
 		case <-time.After(3 * time.Second):
 			s.log.Info("Handling request")
 		}
+	}
+}
+
+// Stop waits for unfinished requests within the deadline of ctx,
+// like http.Server.Shutdown.
+func (s *Server) Stop(ctx context.Context) error {
+	s.log.Info("Got shutdown signal, handling unfinished requests...")
+
+	select {
+	case <-time.After(3 * time.Second):
+		s.log.Info("Done")
+
+		return nil
+	case <-ctx.Done():
+		s.log.Warn("Deadline exceeded, dropping unfinished requests")
+
+		return ctx.Err()
 	}
 }

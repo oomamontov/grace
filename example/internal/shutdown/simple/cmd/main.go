@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/oomamontov/grace/example/internal/shutdown/simple/config"
 	"github.com/oomamontov/grace/example/internal/shutdown/simple/service"
@@ -27,6 +28,8 @@ func main() {
 	grpcServer := grpc.New(cfg.Transport.GRPC, svc, log)
 
 	builder := shutdown.New().WithDefaultValues().
+		WithDefaultLayerExitTimeout(5*time.Second). // each layer gets at most 5 seconds to stop
+		WithShutdownTimeout(20*time.Second).        // and the whole shutdown at most 20 seconds
 		Register(kvStorage, rStorage).
 		Register(cache). // cache is depending on rStorage, so rStorage should be initialized beforehand
 		Register(svc).
