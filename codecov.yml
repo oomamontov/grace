@@ -1,5 +1,15 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 90%
+
+comment:
+  layout: "condensed_header, diff, files"
+
 ignore:
   - "example/**/*"
-  - "pkg/**/*"
-  - "**/go.mod"
-  - "**/go.sum"

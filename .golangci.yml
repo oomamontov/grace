@@ -7,21 +7,55 @@ run:
 linters:
   default: all
   disable:
+    # deprecated, replaced by wsl_v5, exhaustruct_v5 and gomodguard_v2
     - wsl
-    - depguard
-    - err113
     - exhaustruct
-    - gosec
+    - gomodguard
+    # options and errors rely on zero values of their fields
+    - exhaustruct_v5
+    # the module has a single dependency, nothing to guard
+    - depguard
+    # durations and other literals are clear in place
     - mnd
-    - revive
-    - funlen
-    - gochecknoglobals
-    - gocognit
-    - cyclop
-    - ireturn
-    - noinlineerr
-    - testifylint
-    - testpackage
-    - varnamelen
+    # the library intentionally returns typed errors and context errors as is
     - wrapcheck
-    - perfsprint
+    # tests use unexported fields to inspect configuration
+    - testpackage
+    # short names are idiomatic in small scopes
+    - varnamelen
+    # `if err := f(); err != nil` is idiomatic
+    - noinlineerr
+    # runners are interfaces by design
+    - ireturn
+
+  settings:
+    gocognit:
+      min-complexity: 20
+    cyclop:
+      max-complexity: 12
+
+  exclusions:
+    rules:
+      # tests define ad hoc errors and table-driven cases
+      - path: _test\.go
+        linters:
+          - err113
+          - funlen
+      # the state of a single Run call keeps the contexts it derives for tasks
+      - path: ^shutdown/run\.go$
+        linters:
+          - containedctx
+      # the example illustrates components and is not a part of the API
+      - path: ^example/
+        linters:
+          - gosec
+          - revive
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/oomamontov/grace
